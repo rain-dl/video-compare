@@ -26,11 +26,13 @@ private:
     float window_to_drawable_height_factor;
     float font_scale;
 
+    float zoom_factor_;
+    int window_center_pixel_x_;
+    int window_center_pixel_y_;
+
     bool quit_{false};
     bool play_{true};
     bool swap_left_right_{false};
-    bool zoom_left_{false};
-    bool zoom_right_{false};
     bool show_left_{true};
     bool show_right_{true};
     bool show_hud_{true};
@@ -70,6 +72,8 @@ private:
         std::array<uint8_t *, 3> planes_left, std::array<size_t, 3> pitches_left,
         std::array<uint8_t *, 3> planes_right, std::array<size_t, 3> pitches_right,
         int split_x);
+
+    float get_zoom();
 
 public:
     Display(const bool high_dpi_allowed, const std::tuple<int, int> window_size, const unsigned width, const unsigned height, const std::string &left_file_name, const std::string &right_file_name);

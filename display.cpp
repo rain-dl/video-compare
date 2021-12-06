@@ -5,6 +5,7 @@
 #include <iostream>
 #include <memory>
 #include <cmath>
+#include <tuple>
 
 template <typename T>
 inline T check_SDL(T value, const std::string &message)
@@ -54,10 +55,16 @@ Display::Display(
     video_width_{(int)width},
     video_height_{(int)height}
 {
-    int window_width = std::get<0>(window_size) > 0 ? std::get<0>(window_size) : width;
-    int window_height = std::get<1>(window_size) > 0 ? std::get<1>(window_size) : height;
+    zoom_factor_ = 0.0;
+    window_center_pixel_x_ = video_width_ / 2;
+    window_center_pixel_y_ = video_height_ / 2;
 
-    const int create_window_flags = SDL_WINDOW_SHOWN;
+    SDL_DisplayMode DM;
+    SDL_GetCurrentDisplayMode(0, &DM);
+    int window_width = std::get<0>(window_size) > 0 ? std::get<0>(window_size) : DM.w;
+    int window_height = std::get<1>(window_size) > 0 ? std::get<1>(window_size) : DM.h;
+
+    const int create_window_flags = SDL_WINDOW_SHOWN | SDL_WINDOW_FULLSCREEN | SDL_WINDOW_BORDERLESS;
 
     window_ = check_SDL(SDL_CreateWindow(
                             "video-compare", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
@@ -189,6 +196,14 @@ void Display::update_difference(
     }
 }
 
+float Display::get_zoom()
+{
+    if (zoom_factor_ >= 0)
+        return 1 + zoom_factor_;
+    else
+        return 1 / (1 - zoom_factor_);
+}
+
 void Display::refresh(
     std::array<uint8_t *, 3> planes_left, std::array<size_t, 3> pitches_left,
     std::array<uint8_t *, 3> planes_right, std::array<size_t, 3> pitches_right,
@@ -198,9 +213,10 @@ void Display::refresh(
     const std::string &error_message)
 {
     bool compare_mode = show_left_ && show_right_;
+    float zoom = get_zoom();
 
-    int mouse_video_x = std::round(float(mouse_x) * float(video_width_) / float(window_width_));
-    int mouse_video_y = std::round(float(mouse_y) * float(video_height_) / float(window_height_));
+    int mouse_video_x = std::min(std::max(0, (int)std::round((mouse_x - window_width_ / 2) / zoom) + window_center_pixel_x_), video_width_);
+    int mouse_video_y = std::min(std::max(0, (int)std::round((mouse_y - window_height_ / 2) / zoom) + window_center_pixel_y_), video_height_);
 
     // clear everything
     SDL_RenderClear(renderer_);
@@ -236,29 +252,15 @@ void Display::refresh(
         }
 
         // render video
-        SDL_RenderCopy(renderer_, texture_, nullptr, nullptr);
-    }
-
-    // zoomed area
-    int src_zoomed_size = 64;
-    int src_half_zoomed_size = src_zoomed_size / 2;
-    int dst_zoomed_size = drawable_height_ * 0.5f;
-    int dst_half_zoomed_size = dst_zoomed_size / 2;
-
-    if (zoom_left_ || zoom_right_)
-    {
-        SDL_Rect src_zoomed_area = {std::min(std::max(0, mouse_video_x - src_half_zoomed_size), video_width_), std::min(std::max(0, mouse_video_y - src_half_zoomed_size), video_height_), src_zoomed_size, src_zoomed_size};
-
-        if (zoom_left_)
-        {
-            SDL_Rect dst_zoomed_area = {0, drawable_height_ - dst_zoomed_size, dst_zoomed_size, dst_zoomed_size};
-            SDL_RenderCopy(renderer_, texture_, &src_zoomed_area, &dst_zoomed_area);
-        }
-        if (zoom_right_)
-        {
-            SDL_Rect dst_zoomed_area = {drawable_width_ - dst_zoomed_size, drawable_height_ - dst_zoomed_size, dst_zoomed_size, dst_zoomed_size};
-            SDL_RenderCopy(renderer_, texture_, &src_zoomed_area, &dst_zoomed_area);
-        }
+        int src_x_offset = std::min(std::max(0, (int)(window_center_pixel_x_ - window_width_ / zoom / 2)), video_width_);
+        int src_y_offset = std::min(std::max(0, (int)(window_center_pixel_y_ - window_height_ / zoom / 2)), video_height_);
+        SDL_Rect src_zoomed_area = {src_x_offset, src_y_offset,
+            std::min((int)(window_center_pixel_x_ + window_width_ / zoom / 2), video_width_) - src_x_offset,
+            std::min((int)(window_center_pixel_y_ + window_height_ / zoom / 2), video_height_) - src_y_offset};
+        SDL_Rect dst_zoomed_area = {std::min(std::max(0, (int)(window_width_ / 2 - (window_center_pixel_x_ - src_zoomed_area.x) * zoom)), window_width_),
+            std::min(std::max(0, (int)(window_height_ / 2 - (window_center_pixel_y_ - src_zoomed_area.y) * zoom)), window_height_),
+            std::min((int)(src_zoomed_area.w * zoom), window_width_), std::min((int)(src_zoomed_area.h * zoom), window_height_)};
+        SDL_RenderCopy(renderer_, texture_, &src_zoomed_area, &dst_zoomed_area);
     }
 
     SDL_Rect fill_rect;
@@ -363,15 +365,6 @@ void Display::refresh(
         // render movable slider(s)
         SDL_SetRenderDrawColor(renderer_, 255, 255, 255, SDL_ALPHA_OPAQUE);
         SDL_RenderDrawLine(renderer_, draw_x, 0, draw_x, drawable_height_);
-
-        if (zoom_left_)
-        {
-            SDL_RenderDrawLine(renderer_, dst_half_zoomed_size, drawable_height_ - dst_zoomed_size, dst_half_zoomed_size, drawable_height_);
-        }
-        if (zoom_right_)
-        {
-            SDL_RenderDrawLine(renderer_, drawable_width_ - dst_half_zoomed_size, drawable_height_ - dst_zoomed_size, drawable_width_ - dst_half_zoomed_size, drawable_height_);
-        }
     }
 
     SDL_RenderPresent(renderer_);
@@ -414,12 +407,6 @@ void Display::input()
             case SDLK_0:
                 subtraction_mode_ = !subtraction_mode_;
                 break;
-            case SDLK_z:
-                zoom_left_ = true;
-                break;
-            case SDLK_c:
-                zoom_right_ = true;
-                break;
             case SDLK_a:
                 frame_offset_delta_ += 1;
                 break;
@@ -461,18 +448,31 @@ void Display::input()
             case SDLK_PAGEUP:
                 seek_relative_ += 600.0f;
                 break;
+            case SDLK_PLUS:
+            case SDLK_KP_PLUS:
+                zoom_factor_ += 0.2;
+                break;
+            case SDLK_MINUS:
+            case SDLK_KP_MINUS:
+                zoom_factor_ -= 0.2;
+                break;
+            case SDLK_KP_4:
+                window_center_pixel_x_ -= window_width_ / get_zoom() / 20;
+                break;
+            case SDLK_KP_6:
+                window_center_pixel_x_ += window_width_ / get_zoom() / 20;
+                break;
+            case SDLK_KP_8:
+                window_center_pixel_y_ -= window_height_ / get_zoom() / 20;
+                break;
+            case SDLK_KP_2:
+                window_center_pixel_y_ += window_height_ / get_zoom() / 20;
+                break;
+            case SDLK_KP_5:
+                window_center_pixel_x_ = video_width_ / 2;
+                window_center_pixel_y_ = video_height_ / 2;
+                break;
             default:
-                break;
-            }
-            break;
-        case SDL_KEYUP:
-            switch (event_.key.keysym.sym)
-            {
-            case SDLK_z:
-                zoom_left_ = false;
-                break;
-            case SDLK_c:
-                zoom_right_ = false;
                 break;
             }
             break;

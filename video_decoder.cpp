@@ -3,7 +3,6 @@
 #include <string>
 
 VideoDecoder::VideoDecoder(AVCodecParameters* codec_parameters) {
-	avcodec_register_all();
 	const auto codec = avcodec_find_decoder(codec_parameters->codec_id);
 	if (!codec) {
 		throw ffmpeg::Error{"Unsupported video codec"};

@@ -81,7 +81,6 @@ void VideoCompare::demultiplex(const int video_idx) {
 			std::unique_ptr<AVPacket, std::function<void(AVPacket*)>> packet{
 				new AVPacket,
 				[](AVPacket* p){ av_packet_unref(p); delete p; }};
-			av_init_packet(packet.get());
 			packet->data = nullptr;
 
 			// Read frame into AVPacket
@@ -239,7 +238,7 @@ void VideoCompare::video() {
                     float next_position = 0;
                     if (display_->get_seek_from_start()) {
                         // seek from start based on first stream duration in seconds
-                        next_position = (demuxer_[0]->duration() * av_q2d(AV_TIME_BASE_Q) * display_->get_seek_relative());
+                        next_position = (demuxer_[0]->duration() * av_q2d({ 1, AV_TIME_BASE }) * display_->get_seek_relative());
                     } else {
                         next_position = current_position + display_->get_seek_relative();
                     }
