@@ -15,7 +15,6 @@ struct SDL
 class Display
 {
 private:
-    bool high_dpi_allowed_;
     int video_width_;
     int video_height_;
     int drawable_width_;
@@ -64,6 +63,12 @@ private:
     SDL_Texture *texture_;
 
     SDL_Event event_;
+    bool left_button_down_;
+    bool right_button_down_;
+    int right_button_down_x_;
+    int right_button_down_y_;
+    int window_center_pixel_anchor_x_;
+    int window_center_pixel_anchor_y_;
     int mouse_x;
     int mouse_y;
 
@@ -76,7 +81,7 @@ private:
     float get_zoom();
 
 public:
-    Display(const bool high_dpi_allowed, const std::tuple<int, int> window_size, const unsigned width, const unsigned height, const std::string &left_file_name, const std::string &right_file_name);
+    Display(const unsigned width, const unsigned height, const std::string &left_file_name, const std::string &right_file_name);
     ~Display();
 
     // Copy frame to display

@@ -38,19 +38,6 @@ for displaying HD 1080p video on e.g. a Retina 5K display:
 
     ./video-compare video1.mp4 video2.mp4
 
-Allow high DPI mode on systems which supports that. Video pixels are displayed "1-to-1". Useful
-for e.g. displaying UHD 4K video on a Retina 5K display:
-
-    ./video-compare -d video1.mp4 video2.mp4
-
-Use a specific window size instead of deriving the window size from the video dimensions. The video 
-frame will be scaled to fit. Useful for downscaling high resolution video onto a low resolution 
-display:
-
-    ./video-compare -w 1280x720 video1.mp4 video2.mp4
-
-Note: The allow high DPI mode and window size arguments can be combined if so desired.
-
 Controls
 --------
 
@@ -65,15 +52,19 @@ Controls
 * S: Swap left and right video
 * A: Previous frame
 * D: Next frame
-* Z: Zoom area around cursor (result shown in lower left corner)
-* C: Zoom area around cursor (result shown in lower right corner)
 * 1: Toggle hide/show left video
 * 2: Toggle hide/show right video
 * 3: Toggle hide/show HUD
 * 0: Toggle video/subtraction mode
-
-Move the mouse horizontally to adjust the movable slider position. Click the mouse to perform a time
-seek based on the horizontal position of the slider relative to the window width.
+* +/Wheel Up: Zoom in
+* -/Wheel Down: Zoom out
+* Keypad Up arrow: Move window up
+* Keypad Down arrow: Move window down
+* Keypad Left arrow: Move window left
+* Keypad Right arrow: Move window right
+* Left Button Down: Move slider position
+* Right Button Down: Move window
+* Ctrl + Left Button Click: Seek based on the horizontal position of the window width
 
 Requirements
 ------------

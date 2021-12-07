@@ -20,7 +20,7 @@ static inline bool isBehind(int64_t frame1_pts, int64_t frame2_pts) {
 	return diff < -(1.0f / 60.0f);
 }
 
-VideoCompare::VideoCompare(const bool high_dpi_allowed, const std::tuple<int, int> window_size, const std::string &left_file_name, const std::string &right_file_name) :
+VideoCompare::VideoCompare(const std::string &left_file_name, const std::string &right_file_name) :
 	demuxer_{
 		std::make_unique<Demuxer>(left_file_name), 
 		std::make_unique<Demuxer>(right_file_name)},
@@ -32,7 +32,7 @@ VideoCompare::VideoCompare(const bool high_dpi_allowed, const std::tuple<int, in
 	format_converter_{
 		std::make_unique<FormatConverter>(video_decoder_[0]->width(), video_decoder_[0]->height(), max_width_, max_height_, video_decoder_[0]->pixel_format(), AV_PIX_FMT_RGB24),
 		std::make_unique<FormatConverter>(video_decoder_[1]->width(), video_decoder_[1]->height(), max_width_, max_height_, video_decoder_[1]->pixel_format(), AV_PIX_FMT_RGB24)},
-	display_{std::make_unique<Display>(high_dpi_allowed, window_size, max_width_, max_height_, left_file_name, right_file_name)},
+	display_{std::make_unique<Display>(max_width_, max_height_, left_file_name, right_file_name)},
 	timer_{std::make_unique<Timer>()},
 	packet_queue_{
 		std::make_unique<PacketQueue>(queue_size_),
@@ -234,11 +234,12 @@ void VideoCompare::video() {
                     frame_queue_[0]->empty();
                     frame_queue_[1]->empty();
 
+					auto min_duration = std::min(demuxer_[0]->duration(), demuxer_[1]->duration());
                     bool backward = display_->get_seek_relative() < 0.0f;
                     float next_position = 0;
                     if (display_->get_seek_from_start()) {
                         // seek from start based on first stream duration in seconds
-                        next_position = (demuxer_[0]->duration() * av_q2d({ 1, AV_TIME_BASE }) * display_->get_seek_relative());
+                        next_position = (min_duration * av_q2d({ 1, AV_TIME_BASE }) * display_->get_seek_relative());
                     } else {
                         next_position = current_position + display_->get_seek_relative();
                     }
@@ -249,15 +250,17 @@ void VideoCompare::video() {
                         errorMessage = "Unable to seek past end of file";
                         demuxer_[0]->seek(std::max(0.0f, current_position), true);
                         demuxer_[1]->seek(std::max(0.0f, current_position), true);
-                    };
+                    }
 
                     seeking_ = false;
 
                     frame_queue_[0]->pop(frame_left);
-                    left_pts = frame_left->pts;
+                	if (frame_left != nullptr)
+	                    left_pts = frame_left->pts;
 
                     frame_queue_[1]->pop(frame_right);
-                    right_pts = frame_right->pts;
+                	if (frame_right != nullptr)
+	                    right_pts = frame_right->pts;
 
                     left_frames.clear();
                     right_frames.clear();
