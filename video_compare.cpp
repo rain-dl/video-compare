@@ -85,8 +85,9 @@ void VideoCompare::demultiplex(const int video_idx) {
 
 			// Read frame into AVPacket
 			if (!(*demuxer_[video_idx])(*packet)) {
-				packet_queue_[video_idx]->finished();
-				break;
+				demuxer_[0]->seek(0.0f, false);
+				demuxer_[1]->seek(0.0f, false);
+				continue;
 			}
 
 			// Move into queue if first video stream
