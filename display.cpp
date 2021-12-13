@@ -325,8 +325,11 @@ void Display::refresh(
 			SDL_DestroyTexture(right_position_text_texture);
 		}
 
+		char center_text[128];
+		sprintf(center_text, "%s  Zoom: %.2f", current_total_browsable, zoom);
+
 		// current frame / no. in history buffer
-		textSurface = TTF_RenderText_Blended(small_font_, current_total_browsable, textColor);
+		textSurface = TTF_RenderText_Blended(small_font_, center_text, textColor);
 		SDL_Texture* current_total_browsable_text_texture = SDL_CreateTextureFromSurface(renderer_, textSurface);
 		int current_total_browsable_text_width = textSurface->w;
 		int current_total_browsable_text_height = textSurface->h;
